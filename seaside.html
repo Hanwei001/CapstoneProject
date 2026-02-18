@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seaside Vacation Adviser | AWS Serverless Project</title>
+    <style>
+        :root {
+            --primary: #0077be;
+            --secondary: #00a8e8;
+            --bg: #f4f7f9;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+        }
+
+        h1 { color: var(--primary); margin-bottom: 0.5rem; font-size: 1.8rem; }
+        p.subtitle { color: #7f8c8d; margin-bottom: 2rem; font-size: 0.95rem; }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+        }
+
+        input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #edf2f7;
+            border-radius: 12px;
+            outline: none;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,119,190,0.1); }
+
+        button {
+            padding: 14px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, background 0.3s;
+        }
+
+        button:hover { background: var(--secondary); transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        #loading { display: none; margin: 20px 0; color: var(--primary); font-weight: 500; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+        #resultArea {
+            display: none;
+            text-align: left;
+            border-top: 1px solid #f1f1f1;
+            padding-top: 1.5rem;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-item {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .stat-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 700; }
+        .stat-value { font-size: 1.2rem; font-weight: 700; color: var(--primary); margin-top: 4px; }
+
+        .period-header { font-weight: 700; margin-bottom: 12px; font-size: 0.9rem; color: #475569; }
+
+        .period-item {
+            background: #f0f9ff;
+            margin-bottom: 8px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #0369a1;
+            font-weight: 600;
+            border: 1px solid #e0f2fe;
+        }
+
+        .error-msg { color: #e11d48; background: #fff1f2; padding: 12px; border-radius: 10px; margin-top: 10px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>🏝️ Seaside Adviser</h1>
+    <p class="subtitle">Analyze historical sea temperatures to find the perfect swimming window.</p>
+
+    <div class="search-box">
+        <input type="text" id="cityInput" placeholder="Enter city (e.g. Nice, Phuket)" onkeypress="if(event.key==='Enter') checkWeather()">
+        <button onclick="checkWeather()">Search</button>
+    </div>
+
+    <div id="loading">🌊 Fetching satellite marine data...</div>
+
+    <div id="resultArea">
+        <h2 id="resCity" style="margin-top:0; color: var(--primary); font-size: 1.4rem;"></h2>
+        
+        <div class="stat-grid">
+            <div class="stat-item">
+                <div class="stat-label">Avg Sea Temp</div>
+                <div class="stat-value"><span id="resAvgTemp"></span>°C</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Location</div>
+                <div class="stat-value" id="resCountry" style="font-size: 1rem;"></div>
+            </div>
+        </div>
+
+        <div class="period-header">📅 Recommended Periods (≥21°C):</div>
+        <div id="resPeriods"></div>
+    </div>
+</div>
+
+<script>
+    async function checkWeather() {
+        // --- CONFIGURATION ---
+        const apiURL = "YOUR_API_GATEWAY_INVOKE_URL"; // 👈 PASTE YOUR URL HERE
+        // ---------------------
+
+        const city = document.getElementById('cityInput').value.trim();
+        const loading = document.getElementById('loading');
+        const resultArea = document.getElementById('resultArea');
+
+        if (!city) { alert("Please enter a city name."); return; }
+        if (apiURL.includes("YOUR_API")) { alert("Error: API Gateway URL not configured in the code."); return; }
+
+        loading.style.display = 'block';
+        resultArea.style.display = 'none';
+
+        try {
+            const response = await fetch(apiURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ "city": city })
+            });
+
+            const data = await response.json();
+            
+            // Handle AWS API Gateway 2.0 Payload: Parse body string if necessary
+            let res;
+            if (data.body && typeof data.body === 'string') {
+                res = JSON.parse(data.body);
+            } else {
+                res = data;
+            }
+
+            if (response.ok && !res.error) {
+                document.getElementById('resCity').innerText = `📍 ${res.city}`;
+                document.getElementById('resCountry').innerText = res.country || "Unknown";
+                document.getElementById('resAvgTemp').innerText = res.avg_temp;
+                
+                const periodsDiv = document.getElementById('resPeriods');
+                periodsDiv.innerHTML = '';
+
+                if (res.ideal_periods && res.ideal_periods.length > 0) {
+                    res.ideal_periods.forEach(period => {
+                        const item = document.createElement('div');
+                        item.className = 'period-item';
+                        item.innerHTML = `<span>☀️</span> ${period}`;
+                        periodsDiv.appendChild(item);
+                    });
+                } else {
+                    periodsDiv.innerHTML = '<p style="color:#94a3b8; font-style: italic;">No periods met the 21°C criteria in the past year.</p>';
+                }
+
+                resultArea.style.display = 'block';
+            } else {
+                alert("API Error: " + (res.error || "Could not retrieve data."));
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Network Error: Could not connect to AWS. Check your CORS settings or API URL.");
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>

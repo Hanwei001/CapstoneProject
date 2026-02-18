@@ -1,0 +1,8 @@
+﻿.terraform/
+*.tfstate*
+*.tfvars
+*.pem
+__pycache__/
+.terraform.lock.hcl
+.DS_Store
+Thumbs.db
