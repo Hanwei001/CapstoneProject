@@ -33,14 +33,14 @@ resource "aws_subnet" "PublicSubnet" {
   }
 }
 
-resource "aws_subnet" "PrivateSubnet" {
-  vpc_id     = aws_vpc.myVPC.id
-  cidr_block = "10.0.0.64/26"
+# resource "aws_subnet" "PrivateSubnet" {
+#   vpc_id     = aws_vpc.myVPC.id
+#   cidr_block = "10.0.0.64/26"
 
-  tags = {
-    Name = "PrivateSubnet"
-  }
-}
+#   tags = {
+#     Name = "PrivateSubnet"
+#   }
+# }
 
 # Create NAT gateway, Internet Gateway
 
@@ -259,4 +259,47 @@ resource "aws_lambda_permission" "api_gateway_permission" {
 output "api_endpoint" {
   description = "The HTTP API endpoint URL"
   value       = aws_apigatewayv2_stage.default_stage.invoke_url
+}
+
+# ------------------------
+# DynamoDB
+# ------------------------
+resource "aws_dynamodb_table" "seaside_history" {
+  name           = "SeasideSearchHistory"
+  billing_mode   = "PAY_PER_REQUEST" 
+  hash_key       = "City"            
+  range_key      = "Timestamp"       
+
+  attribute {
+    name = "City"
+    type = "S"
+  }
+
+  attribute {
+    name = "Timestamp"
+    type = "S"
+  }
+}
+
+# Attach DynamoDB policy to Lambda role
+resource "aws_iam_policy" "lambda_dynamodb_policy" {
+  name        = "LambdaDynamoDBWritePolicy"
+  description = "Allow Lambda to write to SeasideSearchHistory table"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = ["dynamodb:PutItem"]
+        Effect   = "Allow"
+        Resource = aws_dynamodb_table.seaside_history.arn
+      }
+    ]
+  })
+}
+
+# Attach the policy to the role
+resource "aws_iam_role_policy_attachment" "lambda_dynamodb_attach" {
+  role       = aws_iam_role.lambda_role.name 
+  policy_arn = aws_iam_policy.lambda_dynamodb_policy.arn
 }
