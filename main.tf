@@ -141,7 +141,13 @@ resource "aws_instance" "WebServer" {
   vpc_security_group_ids = [aws_security_group.webServer_SG.id]  
   associate_public_ip_address = true
   key_name = var.key_name
-  user_data = file("userdata.sh")
+  
+  user_data = replace(
+    file("userdata.sh"), 
+    "INSERT_API_URL_HERE", 
+    aws_apigatewayv2_stage.default_stage.invoke_url
+  )
+   
   tags = {
     Name = "Web Server"
   }
@@ -216,7 +222,7 @@ resource "aws_apigatewayv2_api" "seaside_api" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = ["*"] # 调试阶段可以用 *，上线后建议改为你的 EC2 公网 IP 或域名
+    allow_origins = ["*"] 
     allow_methods = ["POST", "OPTIONS"]
     allow_headers = ["content-type"]
     max_age       = 300
