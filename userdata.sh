@@ -79,7 +79,7 @@ cat <<'EOF' > /var/www/html/wordpress/seaside.html
 </head>
 <body>
 <div class="card">
-    <h1>🏝️ Seaside Adviser</h1>
+    <h1>🏝️ Seaside Vacation Adviser</h1>
     <p style="color: #7f8c8d;">Historical analysis of sea temperatures (365 days).</p>
     <div class="search-box">
         <input type="text" id="cityInput" placeholder="Enter city (e.g. Nice, Phuket)">

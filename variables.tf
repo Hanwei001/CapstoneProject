@@ -17,3 +17,9 @@ variable "key_name" {
   description = "Key pair name for SSH access"
   type = string
 }
+
+variable "sns_email_parameter_path" {
+  description = "The path of the SSM parameter storing the SNS email"
+  type        = string
+  default     = "/seaside/sns_email" 
+}
