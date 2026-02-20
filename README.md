@@ -13,7 +13,7 @@ The project follows a standard **Three-Tier Architecture** integrated with AWS S
 
 
 
-## 🛠️ Key Features & Technical Highlights
+## Key Features & Technical Highlights
 
 ### 1. Serverless Analysis Engine
 - **Satellite Data Integration**: Lambda fetches geographical coordinates and 365 days of marine data of a city via the Open-Meteo API.
@@ -36,7 +36,7 @@ The project follows a standard **Three-Tier Architecture** integrated with AWS S
 - **Secrets Management**: Sensitive data (e.g., alert emails) is stored in **AWS SSM Parameter Store** and fetched dynamically, ensuring no PII (Personally Identifiable Information) is leaked in the source code.
 - **IAM Least Privilege**: Fine-grained IAM policies for Lambda to access only necessary DynamoDB and CloudWatch resources.
 
-## 🚀 How to Deploy
+## How to Deploy
 
 1. **Manual Setup**: Create a parameter in AWS SSM Parameter Store at `/seaside/sns_email` with your alert email address.
 2. **Initialize**: `terraform init`
@@ -44,7 +44,7 @@ The project follows a standard **Three-Tier Architecture** integrated with AWS S
 4. **Deploy**: `terraform apply -auto-approve`
 5. **Access**: Open the Public IP of your EC2 instance and navigate to `/seaside.html`.
 
-## 📈 Monitoring Demo
+## Monitoring Demo
 
 To verify the monitoring stack:
 1. Trigger a manual error in the Lambda function.
