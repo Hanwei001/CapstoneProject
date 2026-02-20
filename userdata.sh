@@ -52,7 +52,7 @@ cat <<EOF > /etc/httpd/conf.d/wordpress.conf
 EOF
 
 # ---------------------------------------------------------
-# 5. Generate seaside.html (Optimized for Terraform/JS)
+# 5. Generate seaside.html (With Chart.js Integration)
 # ---------------------------------------------------------
 cat <<'EOF' > /var/www/html/wordpress/seaside.html
 <!DOCTYPE html>
@@ -60,42 +60,62 @@ cat <<'EOF' > /var/www/html/wordpress/seaside.html
 <head>
     <meta charset="UTF-8">
     <title>Seaside Vacation Adviser | AWS Serverless</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --primary: #0077be; --bg: #f4f7f9; --text: #2c3e50; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 2.5rem; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); width: 480px; text-align: center; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 2.5rem; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); width: 100%; max-width: 550px; text-align: center; }
         .search-box { display: flex; gap: 12px; margin: 2rem 0; }
         input { flex: 1; padding: 12px; border: 2px solid #edf2f7; border-radius: 12px; font-size: 1rem; }
         button { padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; }
         #loading { display: none; margin: 20px 0; color: var(--primary); font-weight: 500; }
         #resultArea { display: none; text-align: left; border-top: 1px solid #f1f1f1; padding-top: 1rem; }
-        .period-item { background: #f0f9ff; padding: 10px; border-radius: 8px; margin-top: 8px; color: #0369a1; font-weight: 600; border: 1px solid #e0f2fe; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 1rem; }
+        .stat-item { background: #f8fafc; padding: 10px; border-radius: 12px; border: 1px solid #f1f5f9; }
+        .stat-label { font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; }
+        .period-item { background: #f0f9ff; padding: 10px; border-radius: 8px; margin-top: 8px; color: #0369a1; font-weight: 600; font-size: 0.9rem; }
+        .chart-container { position: relative; height: 250px; width: 100%; margin-top: 1.5rem; }
     </style>
 </head>
 <body>
 <div class="card">
     <h1>🏝️ Seaside Adviser</h1>
-    <p style="color: #7f8c8d;">Find the perfect swimming window based on the data from last 365 days.</p>
+    <p style="color: #7f8c8d;">Historical analysis of sea temperatures (365 days).</p>
     <div class="search-box">
         <input type="text" id="cityInput" placeholder="Enter city (e.g. Nice, Phuket)">
         <button onclick="checkWeather()">Search</button>
     </div>
     <div id="loading">🌊 Fetching satellite marine data...</div>
     <div id="resultArea">
-        <h2 id="resCity" style="color: var(--primary);"></h2>
-        <p>Avg Sea Temp: <span id="resAvgTemp" style="font-weight:700;"></span>°C</p>
-        <p style="font-weight: 700; margin-bottom: 5px;">📅 Recommended Periods:</p>
+        <div class="stat-grid">
+            <div class="stat-item">
+                <div class="stat-label">Location</div>
+                <div id="resCity" style="font-weight: 700; color: var(--primary);"></div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Avg Temp</div>
+                <div style="font-weight: 700; color: var(--primary);"><span id="resAvgTemp"></span>°C</div>
+            </div>
+        </div>
+        
+        <p style="font-weight: 700; margin-bottom: 5px;">📅 Recommended Swimming Windows:</p>
         <div id="resPeriods"></div>
+
+        <div class="chart-container">
+            <canvas id="tempChart"></canvas>
+        </div>
     </div>
 </div>
 
 <script>
+    let myChart = null;
+
     async function checkWeather() {
-        // This placeholder is replaced by Terraform 'replace' function
+        // Placeholder replaced by Terraform replace()
         const apiURL = "INSERT_API_URL_HERE"; 
         
         const city = document.getElementById('cityInput').value.trim();
-        if (!city) { alert("Please enter a city."); return; }
+        if (!city) return;
 
         document.getElementById('loading').style.display = 'block';
         document.getElementById('resultArea').style.display = 'none';
@@ -110,31 +130,67 @@ cat <<'EOF' > /var/www/html/wordpress/seaside.html
             let res = (data.body && typeof data.body === 'string') ? JSON.parse(data.body) : data;
 
             if (response.ok && !res.error) {
-                // String concatenation avoids the ${} syntax issues
-                document.getElementById('resCity').innerText = "📍 " + res.city;
+                document.getElementById('resCity').innerText = "📍 " + res.city + ", " + res.country;
                 document.getElementById('resAvgTemp').innerText = res.avg_temp;
+                
+                // Render periods
                 const periodsDiv = document.getElementById('resPeriods');
                 periodsDiv.innerHTML = '';
-                
-                if (res.ideal_periods && res.ideal_periods.length > 0) {
-                    res.ideal_periods.forEach(function(p) {
+                if (res.ideal_periods.length > 0) {
+                    res.ideal_periods.forEach(p => {
                         const el = document.createElement('div');
                         el.className = 'period-item';
                         el.innerText = "☀️ " + p;
                         periodsDiv.appendChild(el);
                     });
                 } else {
-                    periodsDiv.innerHTML = '<p>No periods met the 21°C criteria.</p>';
+                    periodsDiv.innerHTML = '<p style="font-style:italic; color:#94a3b8;">No periods met the 21°C criteria.</p>';
                 }
+
+                // Render Chart
+                renderTempChart(res.chart_data);
                 document.getElementById('resultArea').style.display = 'block';
             } else {
                 alert("API Error: " + (res.error || "Unknown error"));
             }
         } catch (e) {
-            alert("Network Error: Check API URL or CORS.");
+            alert("Network Error: Could not connect to AWS.");
         } finally {
             document.getElementById('loading').style.display = 'none';
         }
+    }
+
+    function renderTempChart(chartData) {
+        const ctx = document.getElementById('tempChart').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Sea Temp (°C)',
+                    data: chartData.values,
+                    borderColor: '#0077be',
+                    backgroundColor: 'rgba(0, 119, 190, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { display: false },
+                    y: { suggestedMin: 10, ticks: { callback: v => v + '°' } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { mode: 'index', intersect: false }
+                }
+            }
+        });
     }
 </script>
 </body>
