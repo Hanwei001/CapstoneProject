@@ -13,7 +13,7 @@ resource "aws_iam_role" "lambda_role" {
   })
 }
 
-# 权限策略：CloudWatch Logs + S3 写入
+# attach AWS managed policy for basic Lambda execution
 resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
